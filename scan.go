@@ -43,7 +43,7 @@ func (options *ScanOptions) AddRecord(rec *ScanRecord) {
 	options.recordMutex.Unlock()
 
 	b, _ := json.Marshal(rec)
-	log.Printf("Found a record:%v", string(b))
+	log.Printf("Found a record:%v\n", string(b))
 }
 
 func (options *ScanOptions) IncScanCounter() {

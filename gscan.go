@@ -11,6 +11,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"path/filepath"
 )
 
 type ScanGoogleIPConfig struct {
@@ -41,8 +42,8 @@ type GScanConfig struct {
 }
 
 func main() {
-	iprange_file := flag.String("iprange", "./iprange.conf", "Specify IP Range file")
-	conf_file := flag.String("conf", "./gscan.conf", "Specify config file, json format")
+	iprange_file := flag.String("iprange", "./iprange.conf", "IP Range file")
+	conf_file := flag.String("conf", "./gscan.conf", "Config file, json format")
 	flag.Parse()
 	conf_content, err := ioutil.ReadFile(*conf_file)
 	if nil != err {
@@ -61,11 +62,14 @@ func main() {
 	cfg.ScanMinPingRTT = cfg.ScanMinPingRTT * time.Millisecond
 
 	var outputfile *os.File
+	var outputfile_path string
 	if cfg.scanIP {
-		outputfile, err = os.OpenFile(cfg.ScanGoogleIP.OutputFile, os.O_CREATE|os.O_TRUNC, 0644)
+		outputfile_path = cfg.ScanGoogleIP.OutputFile		
 	} else {
-		outputfile, err = os.OpenFile(cfg.ScanGoogleHosts.OutputHosts, os.O_CREATE|os.O_TRUNC, 0644)
+		outputfile_path = cfg.ScanGoogleHosts.OutputHosts
 	}
+	outputfile_path, _ = filepath.Abs(outputfile_path)
+	outputfile, err = os.OpenFile(outputfile_path, os.O_CREATE|os.O_TRUNC, 0644)
 	if nil != err {
 		fmt.Printf("%v\n", err)
 		return
@@ -128,7 +132,6 @@ _end:
 		ss := make([]string, 0)
 		for _, rec := range options.records {
 			ss = append(ss, rec.IP)
-			fmt.Printf("%v\n", rec)
 		}
 		outputfile.WriteString(strings.Join(ss, cfg.ScanGoogleIP.OutputSeparator))
 	} else {
@@ -150,5 +153,8 @@ _end:
 			outputfile.WriteString(fmt.Sprintf("%s\t%s\n", h.IP, h.Host))
 		}
 	}
+	log.Printf("All results writed to %s\n", outputfile_path)
 	outputfile.Close()
+	
+	
 }
