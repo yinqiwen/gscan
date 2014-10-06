@@ -82,11 +82,30 @@ func parseIPRangeFile(file string) ([]*IPRange, error) {
 		if strings.HasPrefix(line, "#") || len(line) == 0 {
 			continue
 		}
-		ss := strings.Split(line, "-")
-		if len(ss) != 2 {
-			return nil, fmt.Errorf("Invalid line:%d in IP Range file:%s", lineno, file)
+		var startIP, endIP string
+		if strings.Contains(line, "/") {
+			ip, ipnet, err := net.ParseCIDR(line)
+			if nil != err {
+				return nil, err
+			}
+			startIP = ip.String()
+			ones, _ := ipnet.Mask.Size()
+			v := inet_aton(ip)
+			var tmp uint32
+			tmp = 0xFFFFFFFF
+			tmp = tmp >> uint32(ones)
+			v = v | int64(tmp)
+			endip := inet_ntoa(v)
+			endIP = endip.String()
+		} else {
+			ss := strings.Split(line, "-")
+			if len(ss) != 2 {
+				return nil, fmt.Errorf("Invalid line:%d in IP Range file:%s", lineno, file)
+			}
+			startIP, endIP = ss[0], ss[1]
 		}
-		iprange, err := parseIPRange(ss[0], ss[1])
+
+		iprange, err := parseIPRange(startIP, endIP)
 		if nil != err {
 			return nil, fmt.Errorf("Invalid line:%d in IP Range file:%s", lineno, file)
 		}
