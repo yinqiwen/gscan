@@ -21,6 +21,8 @@ const (
 	icmpv6EchoReply   = 129
 )
 
+var ErrPingConnFailed = errors.New("ping: connect failed")
+
 type icmpMessage struct {
 	Type     int             // type
 	Code     int             // code
@@ -120,15 +122,14 @@ func parseICMPEcho(b []byte) (*icmpEcho, error) {
 	return p, nil
 }
 
-func Ping(address string, timeout time.Duration) bool {
-	err := Pinger(address, timeout)
-	return err == nil
+func Ping(address string, timeout time.Duration) error {
+	return Pinger(address, timeout)
 }
 
 func Pinger(address string, timeout time.Duration) error {
 	c, err := net.Dial("ip4:icmp", address)
 	if err != nil {
-		return err
+		return ErrPingConnFailed
 	}
 	deadline := time.Now().Add(timeout)
 	defer c.Close()

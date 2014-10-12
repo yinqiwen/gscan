@@ -2,7 +2,6 @@ package main
 
 import (
 	"crypto/tls"
-	"encoding/json"
 	"log"
 	"math/rand"
 	"net"
@@ -41,9 +40,7 @@ func (options *ScanOptions) AddRecord(rec *ScanRecord) {
 	}
 	options.records = append(options.records, rec)
 	options.recordMutex.Unlock()
-
-	b, _ := json.Marshal(rec)
-	log.Printf("Found a record:%v\n", string(b))
+	log.Printf("Found a record: IP=%s, SSLRTT=%fs\n", rec.IP, rec.SSLRTT.Seconds())
 }
 
 func (options *ScanOptions) IncScanCounter() {
@@ -107,7 +104,7 @@ func (records *ScanRecordArray) Len() int {
 }
 
 func (records *ScanRecordArray) Less(i, j int) bool {
-	return (*records)[i].PingRTT < (*records)[j].PingRTT
+	return (*records)[i].SSLRTT < (*records)[j].SSLRTT
 }
 
 func (records *ScanRecordArray) Swap(i, j int) {
@@ -153,7 +150,7 @@ func find_match_hosts(conn *tls.Conn, options *ScanOptions, record *ScanRecord) 
 		for _, pattern := range options.Config.ScanGoogleHosts.HTTPVerifyHosts {
 			if matchHostnames(pattern, host) {
 				conn.SetReadDeadline(time.Now().Add(record.httpVerifyTimeout))
-				req, _ := http.NewRequest("HEAD", "https://" + host, nil)
+				req, _ := http.NewRequest("HEAD", "https://"+host, nil)
 				res, err := httputil.NewClientConn(conn, nil).Do(req)
 				if nil != err || res.StatusCode >= 400 {
 					valid = false
@@ -197,15 +194,23 @@ func test_conn(conn *tls.Conn, options *ScanOptions, record *ScanRecord) bool {
 
 func testip_once(ip string, options *ScanOptions, record *ScanRecord) bool {
 	start := time.Now()
-	if !Ping(ip, options.Config.ScanMaxPingRTT) {
-		return false
+	var end time.Time
+	pingRTT := (options.Config.ScanMinPingRTT + options.Config.ScanMaxPingRTT) / 2
+	if options.Config.VerifyPing {
+		err := Ping(ip, options.Config.ScanMaxPingRTT)
+		if err != nil {
+			log.Printf("####error ip:%s for %v", ip, err)
+			return false
+		}
+		end = time.Now()
+		if nil == err {
+			if options.Config.ScanMinPingRTT > 0 && end.Sub(start) < options.Config.ScanMinPingRTT {
+				return false
+			}
+			pingRTT = end.Sub(start)
+		}
 	}
-	end := time.Now()
-	//sometimes the IP with less ping RTT is not stable
-	if options.Config.ScanMinPingRTT > 0 && end.Sub(start) < options.Config.ScanMinPingRTT {
-		return false
-	}
-	record.PingRTT = record.PingRTT + end.Sub(start)
+	record.PingRTT = record.PingRTT + pingRTT
 	addr := net.JoinHostPort(ip, "443")
 	var config tls.Config
 	config.InsecureSkipVerify = true
@@ -214,20 +219,27 @@ func testip_once(ip string, options *ScanOptions, record *ScanRecord) bool {
 	dialer.Timeout = options.Config.ScanMaxSSLRTT
 	conn, err := tls.DialWithDialer(dialer, "tcp", addr, &config)
 	if err != nil {
+		//log.Printf("####ssl dial:%v", err)
 		return false
 	}
 	end = time.Now()
+	sslRTT := end.Sub(start)
+	if options.Config.ScanMinSSLRTT > 0 && sslRTT < options.Config.ScanMinSSLRTT {
+		conn.Close()
+		return false
+	}
+
 	success := true
-	record.httpVerifyTimeout = options.Config.ScanMaxSSLRTT - (end.Sub(start))
+	record.httpVerifyTimeout = options.Config.ScanMaxSSLRTT - sslRTT
 	if options.Config.scanIP {
 		success = test_conn(conn, options, record)
 	} else {
 		success = find_match_hosts(conn, options, record)
 	}
-	end = time.Now()
+	//end = time.Now()
 	conn.Close()
 	if success {
-		record.SSLRTT = record.SSLRTT + end.Sub(start)
+		record.SSLRTT = record.SSLRTT + sslRTT
 	}
 	return success
 }

@@ -7,11 +7,11 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 	"sync"
 	"time"
-	"path/filepath"
 )
 
 type ScanGoogleIPConfig struct {
@@ -23,14 +23,16 @@ type ScanGoogleIPConfig struct {
 }
 
 type ScanGoogleHostsConfig struct {
-	InputHosts  string
-	OutputHosts string
-	HTTPVerifyHosts    []string
+	InputHosts      string
+	OutputHosts     string
+	HTTPVerifyHosts []string
 }
 
 type GScanConfig struct {
+	VerifyPing     bool
 	ScanMinPingRTT time.Duration
 	ScanMaxPingRTT time.Duration
+	ScanMinSSLRTT  time.Duration
 	ScanMaxSSLRTT  time.Duration
 	ScanWorker     int
 	ScanCountPerIP int
@@ -58,13 +60,14 @@ func main() {
 	}
 	cfg.scanIP = strings.EqualFold(cfg.Operation, "ScanGoogleIP")
 	cfg.ScanMaxSSLRTT = cfg.ScanMaxSSLRTT * time.Millisecond
+	cfg.ScanMinSSLRTT = cfg.ScanMinSSLRTT * time.Millisecond
 	cfg.ScanMaxPingRTT = cfg.ScanMaxPingRTT * time.Millisecond
 	cfg.ScanMinPingRTT = cfg.ScanMinPingRTT * time.Millisecond
 
 	var outputfile *os.File
 	var outputfile_path string
 	if cfg.scanIP {
-		outputfile_path = cfg.ScanGoogleIP.OutputFile		
+		outputfile_path = cfg.ScanGoogleIP.OutputFile
 	} else {
 		outputfile_path = cfg.ScanGoogleHosts.OutputHosts
 	}
@@ -84,7 +87,6 @@ func main() {
 			return
 		}
 	}
-
 	log.Printf("Start loading IP Range file:%s\n", *iprange_file)
 	ipranges, err := parseIPRangeFile(*iprange_file)
 	if nil != err {
@@ -155,6 +157,5 @@ _end:
 	}
 	log.Printf("All results writed to %s\n", outputfile_path)
 	outputfile.Close()
-	
-	
+
 }
