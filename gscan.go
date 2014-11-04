@@ -135,7 +135,10 @@ _end:
 		for _, rec := range options.records {
 			ss = append(ss, rec.IP)
 		}
-		outputfile.WriteString(strings.Join(ss, cfg.ScanGoogleIP.OutputSeparator))
+		_, err = outputfile.WriteString(strings.Join(ss, cfg.ScanGoogleIP.OutputSeparator))
+		if nil != err{
+		   log.Printf("Failed to write output file:%s for reason:%v\n", outputfile_path, err)
+		}
 	} else {
 		outputfile.WriteString(fmt.Sprintf("###############Update %s###############\n", time.Now().Format("2006-01-02 15:04:05")))
 		outputfile.WriteString("###############GScan Hosts Begin#################\n")
@@ -155,7 +158,12 @@ _end:
 			outputfile.WriteString(fmt.Sprintf("%s\t%s\n", h.IP, h.Host))
 		}
 	}
-	log.Printf("All results writed to %s\n", outputfile_path)
-	outputfile.Close()
+	
+	err = outputfile.Close()
+	if nil != err{
+		log.Printf("Failed to close output file:%s for reason:%v\n", outputfile_path, err)
+	}else{
+		log.Printf("All results writed to %s\n", outputfile_path)
+	}
 
 }
