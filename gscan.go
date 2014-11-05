@@ -72,7 +72,7 @@ func main() {
 		outputfile_path = cfg.ScanGoogleHosts.OutputHosts
 	}
 	outputfile_path, _ = filepath.Abs(outputfile_path)
-	outputfile, err = os.OpenFile(outputfile_path, os.O_CREATE|os.O_TRUNC, 0644)
+	outputfile, err = os.OpenFile(outputfile_path, os.O_CREATE|os.O_TRUNC|os.O_RDWR, 0644)
 	if nil != err {
 		fmt.Printf("%v\n", err)
 		return
@@ -136,8 +136,8 @@ _end:
 			ss = append(ss, rec.IP)
 		}
 		_, err = outputfile.WriteString(strings.Join(ss, cfg.ScanGoogleIP.OutputSeparator))
-		if nil != err{
-		   log.Printf("Failed to write output file:%s for reason:%v\n", outputfile_path, err)
+		if nil != err {
+			log.Printf("Failed to write output file:%s for reason:%v\n", outputfile_path, err)
 		}
 	} else {
 		outputfile.WriteString(fmt.Sprintf("###############Update %s###############\n", time.Now().Format("2006-01-02 15:04:05")))
@@ -158,11 +158,11 @@ _end:
 			outputfile.WriteString(fmt.Sprintf("%s\t%s\n", h.IP, h.Host))
 		}
 	}
-	
+
 	err = outputfile.Close()
-	if nil != err{
+	if nil != err {
 		log.Printf("Failed to close output file:%s for reason:%v\n", outputfile_path, err)
-	}else{
+	} else {
 		log.Printf("All results writed to %s\n", outputfile_path)
 	}
 
